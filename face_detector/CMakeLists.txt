@@ -1,47 +1,110 @@
-cmake_minimum_required(VERSION 2.4.6)
-include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
+cmake_minimum_required(VERSION 2.8.3)
+project(face_detector)
 
-# Set the build type.  Options are:
-#  Coverage       : w/ debug symbols, w/o optimization, w/ code-coverage
-#  Debug          : w/ debug symbols, w/o optimization
-#  Release        : w/o debug symbols, w/ optimization
-#  RelWithDebInfo : w/ debug symbols, w/ optimization
-#  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
+find_package(catkin REQUIRED COMPONENTS
+        actionlib
+        actionlib_msgs
+        cv_bridge
+        geometry_msgs
+        image_geometry
+        image_transport
+        message_filters
+        message_generation
+        people_msgs
+        rosbag
+        roscpp
+        roslib
+        rospy
+        sensor_msgs
+        std_msgs
+        std_srvs
+        stereo_msgs
+        tf
+)
 
-rosbuild_find_ros_package(actionlib_msgs)
-include(${actionlib_msgs_PACKAGE_PATH}/cmake/actionbuild.cmake)
-genaction()
+find_package(Boost REQUIRED COMPONENTS signals system thread)
+find_package(OpenCV)
 
-rosbuild_init()
+include_directories(
+  include
+  ${Boost_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
 
-#set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-#set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+add_action_files(
+  DIRECTORY action
+  FILES FaceDetector.action
+)
+generate_messages(DEPENDENCIES actionlib_msgs people_msgs)
 
-#uncomment if you have defined messages
-rosbuild_genmsg()
-#uncomment if you have defined services
-#rosbuild_gensrv()
+catkin_package(
+    INCLUDE_DIRS include
+    CATKIN_DEPENDS
+        actionlib
+        actionlib_msgs
+        cv_bridge
+        geometry_msgs
+        image_geometry
+        image_transport
+        message_filters
+        message_runtime
+        people_msgs
+        roscpp
+        roslib
+        rospy
+        sensor_msgs
+        std_msgs
+        stereo_msgs
+        tf
+)
 
-#common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#target_link_libraries(${PROJECT_NAME} another_library)
-#rosbuild_add_boost_directories()
-#rosbuild_link_boost(${PROJECT_NAME} thread)
-#rosbuild_add_executable(example examples/example.cpp)
-#target_link_libraries(example ${PROJECT_NAME})
-find_package(OpenCV REQUIRED)
-rosbuild_add_executable(face_detector
-                       src/face_detection.cpp 
+add_executable(face_detector
+                       src/face_detection.cpp
                        src/faces.cpp)
+target_link_libraries(${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${OpenCV_LIBRARIES})
 
-target_link_libraries(face_detector ${OpenCV_LIBS})
-rosbuild_link_boost(face_detector signals system thread)
+add_dependencies(face_detector ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+install(TARGETS
+  face_detector
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
-rosbuild_download_test_data(http://pr.willowgarage.com/data/face_detector/face_detector_noface_test_diamondback.bag face_detector_noface_test.bag 37f043be780a4511c853379defdd9855)
-rosbuild_download_test_data(http://pr.willowgarage.com/data/face_detector/face_detector_withface_test_diamondback.bag face_detector_withface_test.bag 59126117e049e69d577b7ee27251a6f8)
-rosbuild_add_rostest(test/face_detector_true_rtest.xml)
-rosbuild_add_rostest(test/face_detector_false_rtest.xml)
+install(DIRECTORY include/face_detector/
+        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(DIRECTORY launch param
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/
+)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+
+  catkin_download_test_data(${PROJECT_NAME}_noface_test_diamondback.bag
+    http://download.ros.org/data/face_detector/face_detector_noface_test_diamondback.bag
+    DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/test
+    MD5 37f043be780a4511c853379defdd9855)
+  catkin_download_test_data(${PROJECT_NAME}_withface_test_diamondback.bag
+    http://download.ros.org/data/face_detector/face_detector_withface_test_diamondback.bag
+    DESTINATION ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_SHARE_DESTINATION}/test
+    MD5 59126117e049e69d577b7ee27251a6f8)
+
+#  add_rostest(test/wide-stereo_true_rtest.xml)
+#  add_rostest(test/wide-stereo_false_rtest.xml)
+  add_rostest(test/rgbd_true_rtest.xml)
+  add_rostest(test/rgbd_false_rtest.xml)
+#  add_rostest(test/narrow-stereo_true_rtest.xml)
+#  add_rostest(test/narrow-stereo_false_rtest.xml)
+#  add_rostest(test/action-wide_true_rtest.xml)
+#  add_rostest(test/action-wide_false_rtest.xml)
+#  add_rostest(test/action-rgbd_true_rtest.xml)
+#  add_rostest(test/action-rgbd_false_rtest.xml)
+
+endif()
